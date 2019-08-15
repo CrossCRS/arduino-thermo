@@ -1,11 +1,9 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <Ticker.h>
 #include <U8g2lib.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-#include "main.h"
 #include "thermo.xbm"
 
 
@@ -14,8 +12,7 @@
 #define DISPLAY_DATA_PIN SDA
 #define DISPLAY_FONT u8g2_font_inb21_mf
 #define THERMO_PIN 2
-#define DRAW_INTERVAL 100 // ms
-#define THERMO_INTERVAL 1000 // ms
+#define LOOP_INTERVAL 1000 // ms
 //#define DEBUG
 
 
@@ -24,9 +21,6 @@ DallasTemperature sensors(&oneWire);
 DeviceAddress thermo;
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, DISPLAY_RESET_PIN, DISPLAY_CLOCK_PIN, DISPLAY_DATA_PIN);
-
-Ticker timer_draw(draw_loop, DRAW_INTERVAL);
-Ticker timer_thermo(thermo_loop, THERMO_INTERVAL);
 
 char thermo_buff[10] = "";
 
@@ -41,17 +35,18 @@ void setup() {
 
   sensors.begin();
   sensors.getAddress(thermo, 0);
-
-  timer_thermo.start();
-  timer_draw.start();
 }
 
 void loop() {
-  timer_thermo.update();
-  timer_draw.update();
-}
+  // Sensor
+  sensors.requestTemperaturesByAddress(thermo);
+  sprintf(thermo_buff, "%d°C", (int)(sensors.getTempC(thermo)));
+  #ifdef DEBUG
+  Serial.print("thermo_buff = ");
+  Serial.println(thermo_buff);
+  #endif
 
-void draw_loop() {
+  // Display
   u8g2.setFont(DISPLAY_FONT);
   u8g2.setFontDirection(0);
 
@@ -63,13 +58,6 @@ void draw_loop() {
   u8g2.print(thermo_buff);
 
   u8g2.sendBuffer();
-}
 
-void thermo_loop() {
-  sensors.requestTemperaturesByAddress(thermo);
-  sprintf(thermo_buff, "%d°C", (int)(sensors.getTempC(thermo)));
-  #ifdef DEBUG
-  Serial.print("thermo_buff = ");
-  Serial.println(thermo_buff);
-  #endif
+  delay(LOOP_INTERVAL);
 }
